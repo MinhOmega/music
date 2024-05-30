@@ -10,7 +10,7 @@ import { HeartFilled, HeartOutlined, PlusOutlined } from '@ant-design/icons'
 import { faEllipsisVertical, faList, faPlay, faPlus, faTrashCan } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Button, Dropdown, List, Tooltip } from 'antd'
-import { ItemType } from 'antd/es/menu/hooks/useItems'
+import { ItemType } from 'antd/es/menu/interface'
 import React from 'react'
 
 interface VerticalTracksListProps {
