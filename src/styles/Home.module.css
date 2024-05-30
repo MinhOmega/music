@@ -1,0 +1,6 @@
+.headerControls {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 16px;
+}

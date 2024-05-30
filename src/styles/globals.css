@@ -1,0 +1,31 @@
+html,
+body,
+#__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#__next {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0b0e0e;
+}
+
+.full-height-tabs .ant-tabs-content {
+  height: 100%;
+}
+
+.full-height-tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+.ant-comment-content-author {
+  display: flex;
+}
+
+.ant-comment-content-author .ant-comment-content-author-name {
+  flex: 1;
+}
