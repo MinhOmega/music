@@ -1,40 +1,43 @@
 name: Auto Merge PR
-#
+
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize, review_requested, review_request_removed, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, review_requested, review_request_removed, edited]
 
 jobs:
   auto-merge:
     if: github.event.pull_request.base.ref == 'developer'
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Check approvals
-        id: check_approvals
+      - name: Get PR approvals
+        id: get-approvals
         run: |
-          required_approvers=(${{ secrets.REQUIRED_APPROVERS }})
+          echo "REQUIRED_APPROVERS=${{ secrets.REQUIRED_APPROVERS }}" >> $GITHUB_ENV
+          pr_number=${{ github.event.pull_request.number }}
           approvals=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-                        "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" | \
-                        jq -r '.[] | select(.state == "APPROVED") | .user.login')
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${pr_number}/reviews" \
+            | jq '[.[] | select(.state == "APPROVED") | .user.login]')
+          echo "APPROVALS=${approvals}" >> $GITHUB_ENV
 
-          approvals_count=0
-          for approver in "${required_approvers[@]}"; do
-            if echo "${approvals[@]}" | grep -q "${approver}"; then
-              ((approvals_count++))
+      - name: Check if PR has required approvals
+        id: check-approvals
+        run: |
+          IFS=',' read -ra REQUIRED_USERS <<< "${{ env.REQUIRED_APPROVERS }}"
+          for user in "${REQUIRED_USERS[@]}"; do
+            if ! echo "${{ env.APPROVALS }}" | grep -q "$user"; then
+              echo "Required approver $user has not approved yet."
+              exit 1
             fi
           done
 
-          if [[ $approvals_count -eq ${#required_approvers[@]} ]]; then
-            echo "approved_by_all=true" >> $GITHUB_ENV
-          else
-            echo "approved_by_all=false" >> $GITHUB_ENV
-
-      - name: Auto merge if approved by all required users
-        if: env.approved_by_all == 'true'
-        run: |
-          gh pr merge ${{ github.event.pull_request.number }} --squash --admin --repo ${{ github.repository }}
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Merge PR
+        if: steps.check-approvals.outputs.success == 'true'
+        uses: pascalgn/automerge-action@v0.14.3
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          merge-method: merge
+          branch: developer
