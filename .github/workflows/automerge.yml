@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs
-#
+
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -13,14 +13,15 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install jq
-        run: sudo apt-get install jq
+        run: sudo apt-get install -y jq
 
-      - name: Set up GitHub CLI
+      - name: Install GitHub CLI
         run: |
-          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
-          sudo apt-add-repository https://cli.github.com/packages
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt-get update
-          sudo apt-get install gh
+          sudo apt-get install -y gh
 
       - name: Check PR approvals and merge if approved
         env:
@@ -39,7 +40,7 @@ jobs:
 
               for APPROVER in "${APPROVERS[@]}"; do
                 if [ "$APPROVER" != "$PR_CREATOR" ]; then
-                  if gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login=="'$APPROVER'" and .state=="APPROVED")'; then
+                  if gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login=="'$APPROVER'" and .state=="APPROVED")' | grep -q "$APPROVER"; then
                     APPROVED_COUNT=$((APPROVED_COUNT+1))
                   fi
                 fi
