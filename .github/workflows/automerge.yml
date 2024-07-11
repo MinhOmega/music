@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs
-##
+
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -27,12 +27,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REQUIRED_APPROVERS: ${{ vars.REQUIRED_APPROVERS }}
+          BASE_BRANCH: 'developer' # Set this to the branch you want to target
+          END_TIME: $(( $(date +%s) + 86400 )) # 24 hours from now
         run: |
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
-          BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
+          PR_BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
 
-          if [ "$BASE_BRANCH" == "developer" ]; then
-            END_TIME=$(date -d "24 hours" +%s)
+          if [ "$PR_BASE_BRANCH" == "$BASE_BRANCH" ]; then
             APPROVERS=(${REQUIRED_APPROVERS//,/ })
             echo "Required Approvers: ${APPROVERS[@]}"
             while [ $(date +%s) -lt $END_TIME ]; do
@@ -60,5 +61,5 @@ jobs:
               echo "PR #$PR_NUMBER did not receive the required approvals within 24 hours."
             fi
           else
-            echo "PR does not target the 'developer' branch. No merge action will be taken."
+            echo "PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
           fi
