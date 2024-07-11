@@ -1,5 +1,8 @@
 name: Auto-Merge-PRs
 #
+# This workflow automates the merging of pull requests after they have received
+# the required approvals.
+#
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -9,71 +12,93 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 🚀 Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install jq
+      - name: 📦 Install jq
         run: sudo apt-get install -y jq
 
-      - name: Install GitHub CLI
+      - name: 🔧 Install GitHub CLI
         run: |
+          # Install GitHub CLI
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
           sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: Check PR approvals and merge if approved
+      - name: 🛡️ Check PR approvals and merge if approved
         id: merge-step
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           REQUIRED_APPROVERS: ${{ vars.REQUIRED_APPROVERS }}
-          BASE_BRANCH: 'developer' # Set this to the branch you want to target
-          END_TIME: $(( $(date +%s) + 86400 )) # 24 hours from now
+          BASE_BRANCH: 'developer'
         run: |
+          # Get the pull request number from the event
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+
+          # Get the base branch of the pull request
           PR_BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
+
+          # Set the end time for the merge process
           END_TIME=$(($(date +%s) + 86400))
 
+          # Check if the pull request targets the base branch
           if [ "$PR_BASE_BRANCH" == "$BASE_BRANCH" ]; then
+            # Get the required approvers
             APPROVERS=(${REQUIRED_APPROVERS//,/ })
-            echo "Required Approvers: ${APPROVERS[@]}"
+
+            # Loop until the pull request is closed or the required approvals are received
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
+              # Get the state of the pull request
               PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+
+              # If the pull request is closed, stop the process
               if [ "$PR_STATE" == "closed" ]; then
-                echo "PR #$PR_NUMBER is closed. Stopping the process."
+                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
                 exit 0
               fi
 
+              # Initialize counters
               APPROVED_COUNT=0
               APPROVED_USERS=()
 
+              # Loop through the required approvers
               for APPROVER in "${APPROVERS[@]}"; do
+                # Check if the approver has approved the pull request
                 if gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login=="'$APPROVER'" and .state=="APPROVED")' | grep -q "$APPROVER"; then
+                  # Increment the approved count
                   APPROVED_COUNT=$((APPROVED_COUNT+1))
+
+                  # Add the approver to the list of approved users
                   APPROVED_USERS+=("@$APPROVER")
                 fi
               done
 
-              echo "Approved Count: $APPROVED_COUNT"
-
-              if [ "$APPROVED_COUNT" -eq "${#APPROVERS[@]}" ]; then
+              # Check if the required approvals have been received
+              if [ "$APPROVED_COUNT" -eq "${#APPROVERS[@]}" ]; then 
+                # Merge the pull request
                 gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
-                echo "PR #$PR_NUMBER has been merged."
 
-                # Comment on the PR
-                COMMENT="This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]}"
-                gh pr comment $PR_NUMBER --body "$COMMENT"
+                # Comment on the pull request
+                COMMENT="This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]}" 🗨️
+                gh pr comment $PR_NUMBER --body "💬 $COMMENT"
+
+                # Exit the workflow
                 break
               else
-                echo "PR #$PR_NUMBER does not have the required approvals yet. Checking again in 60 seconds..."
+                # If the required approvals have not been received, wait for 60 seconds and check again
+                echo "🔄 PR #$PR_NUMBER does not have the required approvals yet. Checking again in 60 seconds..."
                 sleep 60
               fi
             done
 
-            if [ "$APPROVED_COUNT" -ne "${#APPROVERS[@]}" ]; then
-              echo "PR #$PR_NUMBER did not receive the required approvals within 24 hours."
+            # If the required approvals have not been received, print a message
+            if [ "$APPROVED_COUNT" -ne "${#APPROVERS[@]}" ]; then ⚠️
+              echo "🕰️ PR #$PR_NUMBER did not receive the required approvals within 24 hours."
             fi
           else
-            echo "PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
+            # If the pull request targets a different branch, print a message
+            echo "❌ PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
           fi
+
