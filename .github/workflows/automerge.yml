@@ -60,11 +60,6 @@ jobs:
               if [ "$APPROVED_COUNT" -eq "${#APPROVERS[@]}" ]; then
                 gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
                 echo "PR #$PR_NUMBER has been merged."
-                
-                # Set the output for approved users
-                APPROVED_USERS_STR=$(printf ", %s" "${APPROVED_USERS[@]}")
-                APPROVED_USERS_STR=${APPROVED_USERS_STR:2}  # Remove leading comma and space
-                echo "::set-output name=approved_users::$APPROVED_USERS_STR"
                 break
               else
                 echo "PR #$PR_NUMBER does not have the required approvals yet. Checking again in 60 seconds..."
@@ -100,6 +95,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
-          APPROVED_USERS="${{ needs.auto-merge.outputs.approved_users }}"
-          COMMENT="This Pull Request is auto-merged by approval of ${APPROVED_USERS}"
+          COMMENT="This Pull Request is auto-merged"
           gh pr comment $PR_NUMBER --body "$COMMENT"
