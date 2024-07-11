@@ -34,6 +34,7 @@ jobs:
           PR_BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
 
           if [ "$PR_BASE_BRANCH" == "$BASE_BRANCH" ]; then
+            END_TIME=$(($(date +%s) + 86400))
             APPROVERS=(${REQUIRED_APPROVERS//,/ })
             echo "Required Approvers: ${APPROVERS[@]}"
             while [ $(date +%s) -lt $END_TIME ]; do
@@ -53,7 +54,7 @@ jobs:
 
               echo "Approved Count: $APPROVED_COUNT"
 
-              if [ $APPROVED_COUNT -eq ${#APPROVERS[@]} ]; then
+              if [ "$APPROVED_COUNT" -eq "${#APPROVERS[@]}" ]; then
                 gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
                 echo "PR #$PR_NUMBER has been merged."
                 break
@@ -63,7 +64,7 @@ jobs:
               fi
             done
 
-            if [ $APPROVED_COUNT -ne ${#APPROVERS[@]} ]; then
+            if [ "$APPROVED_COUNT" -ne "${#APPROVERS[@]}" ]; then
               echo "PR #$PR_NUMBER did not receive the required approvals within 24 hours."
             fi
           else
