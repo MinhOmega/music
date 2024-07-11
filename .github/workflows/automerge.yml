@@ -2,32 +2,11 @@ name: Auto Merge PR
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize, closed, review_requested, review_request_removed, ready_for_review]
+    types: [opened, edited, reopened, synchronize, review_requested, review_request_removed, ready_for_review]
 
 jobs:
   auto-merge:
     if: github.event.pull_request.base.ref == 'developer'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Get PR reviews
-        id: reviews
-        uses: tj-actions/branch-protection-bot@v7.4
-        with:
-          gh_token: ${{ secrets.GH_TOKEN }}
-          repository: ${{ github.repository }}
-          pull_request_number: ${{ github.event.pull_request.number }}
-
-      - name: Auto merge if approved by required users
-        if: ${{ steps.reviews.outputs.reviewers }} == secrets.REQUIRED_APPROVERS
-        run: |
-          gh pr merge ${{ github.event.pull_request.number }} --squash --admin --repo ${{ github.repository }}
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
-  check-approvals:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -41,15 +20,17 @@ jobs:
                         "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" | \
                         jq -r '.[] | select(.state == "APPROVED") | .user.login')
 
-          approved_by_all=true
+          approvals_count=0
           for approver in "${required_approvers[@]}"; do
-            if [[ ! " ${approvals[@]} " =~ " ${approver} " ]]; then
-              approved_by_all=false
-              break
+            if echo "${approvals[@]}" | grep -q "${approver}"; then
+              ((approvals_count++))
             fi
           done
 
-          echo "approved_by_all=$approved_by_all" >> $GITHUB_ENV
+          if [[ $approvals_count -eq ${#required_approvers[@]} ]]; then
+            echo "approved_by_all=true" >> $GITHUB_ENV
+          else
+            echo "approved_by_all=false" >> $GITHUB_ENV
 
       - name: Auto merge if approved by all required users
         if: env.approved_by_all == 'true'
