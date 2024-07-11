@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs
-#
+
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -34,8 +34,8 @@ jobs:
 
           if [ "$BASE_BRANCH" == "developer" ]; then
             END_TIME=$(date -d "24 hours" +%s)
+            APPROVERS=(${REQUIRED_APPROVERS//,/ })
             while [ $(date +%s) -lt $END_TIME ]; do
-              APPROVERS=(${REQUIRED_APPROVERS//,/ })
               APPROVED_COUNT=0
 
               for APPROVER in "${APPROVERS[@]}"; do
