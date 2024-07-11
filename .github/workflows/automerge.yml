@@ -2,62 +2,58 @@ name: Auto Merge PR
 
 on:
   pull_request:
-    types:
-      - labeled
-      - unlabeled
-      - opened
-      - edited
-      - synchronize
+    types: [opened, edited, reopened, synchronize, closed, review_requested, review_request_removed, ready_for_review]
 
 jobs:
   auto-merge:
+    if: github.event.pull_request.base.ref == 'developer'
     runs-on: ubuntu-latest
-    env:
-      REQUIRED_APPROVERS: ${{ secrets.REQUIRED_APPROVERS }}
-
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Verify approvals
-      id: verify
-      run: |
-        PR_BRANCH=$(jq -r '.pull_request.base.ref' $GITHUB_EVENT_PATH)
-        REQUIRED_APPROVERS_ARR=(${REQUIRED_APPROVERS//,/ })
+      - name: Get PR reviews
+        id: reviews
+        uses: tj-actions/branch-protection-bot@v7.4
+        with:
+          gh_token: ${{ secrets.GH_TOKEN }}
+          repository: ${{ github.repository }}
+          pull_request_number: ${{ github.event.pull_request.number }}
 
-        # Fetch reviews and filter out the PR creator's approval
-        PR_APPROVALS=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
-          | jq -r '[.[] | select(.state == "APPROVED") | .user.login] | sort | join(",")')
+      - name: Auto merge if approved by required users
+        if: ${{ steps.reviews.outputs.reviewers }} == secrets.REQUIRED_APPROVERS
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --squash --admin --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-        # Check if all required approvers have approved
-        ALL_APPROVED=true
-        for APPROVER in "${REQUIRED_APPROVERS_ARR[@]}"; do
-          if [[ ! "$PR_APPROVALS" == *"$APPROVER"* ]]; then
-            ALL_APPROVED=false
-            break
-          fi
-        done
+  check-approvals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        echo "PR_BRANCH=${PR_BRANCH}" >> $GITHUB_ENV
-        echo "ALL_APPROVED=${ALL_APPROVED}" >> $GITHUB_ENV
+      - name: Check approvals
+        id: check_approvals
+        run: |
+          required_approvers=(${{ secrets.REQUIRED_APPROVERS }})
+          approvals=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+                        "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" | \
+                        jq -r '.[] | select(.state == "APPROVED") | .user.login')
 
-    - name: Auto merge if conditions are met
-      if: ${{ env.ALL_APPROVED == 'true' && env.PR_BRANCH == 'developer' }}
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          approved_by_all=true
+          for approver in "${required_approvers[@]}"; do
+            if [[ ! " ${approvals[@]} " =~ " ${approver} " ]]; then
+              approved_by_all=false
+              break
+            fi
+          done
 
-        git fetch origin +refs/pull/${{ github.event.pull_request.number }}/merge
-        git checkout -qf FETCH_HEAD
-        git merge origin/developer
+          echo "approved_by_all=$approved_by_all" >> $GITHUB_ENV
 
-        git push origin HEAD:developer
-
-    - name: Add comment on PR
-      if: ${{ env.ALL_APPROVED == 'true' && env.PR_BRANCH == 'developer' }}
-      run: |
-        curl -s -X POST -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-          -H "Content-Type: application/json" \
-          -d '{"body":"PR has been automatically merged by GitHub Actions."}' \
-          "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+      - name: Auto merge if approved by all required users
+        if: env.approved_by_all == 'true'
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --squash --admin --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
