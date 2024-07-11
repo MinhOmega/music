@@ -12,13 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚀 Checkout repository
+      - name: Checkout repository 🚀
         uses: actions/checkout@v2
 
-      - name: 📦 Install jq
+      - name: Install jq 📦
         run: sudo apt-get install -y jq
 
-      - name: 🔧 Install GitHub CLI
+      - name: Install GitHub CLI 🔧
         run: |
           # Install GitHub CLI
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
@@ -27,7 +27,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: 🛡️ Check PR approvals and merge if approved
+      - name: Check PR approvals and merge if approved 🛡️
         id: merge-step
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -81,8 +81,8 @@ jobs:
                 gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
 
                 # Comment on the pull request
-                COMMENT="This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]}" 🗨️
-                gh pr comment $PR_NUMBER --body "💬 $COMMENT"
+                COMMENT="💬 This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]} 🗨️"
+                gh pr comment $PR_NUMBER --body "$COMMENT"
 
                 # Exit the workflow
                 break
