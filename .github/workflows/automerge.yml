@@ -32,11 +32,12 @@ jobs:
         run: |
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
           PR_BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
+          END_TIME=$(($(date +%s) + 86400))
 
           if [ "$PR_BASE_BRANCH" == "$BASE_BRANCH" ]; then
             APPROVERS=(${REQUIRED_APPROVERS//,/ })
             echo "Required Approvers: ${APPROVERS[@]}"
-            while [ $(date +%s) -lt "$END_TIME" ]; do
+            while [ "$(date +%s)" -lt $END_TIME ]; do
               PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
               if [ "$PR_STATE" == "closed" ]; then
                 echo "PR #$PR_NUMBER is closed. Stopping the process."
