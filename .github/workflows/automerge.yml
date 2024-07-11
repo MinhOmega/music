@@ -24,8 +24,8 @@ jobs:
       run: |
         PR_CREATOR=$(jq -r '.pull_request.user.login' $GITHUB_EVENT_PATH)
         PR_BRANCH=$(jq -r '.pull_request.base.ref' $GITHUB_EVENT_PATH)
-        REQUIRED_APPROVERS_ARR=(${{ secrets.REQUIRED_APPROVERS }})
-
+        REQUIRED_APPROVERS_ARR=(${REQUIRED_APPROVERS//,/ })
+        
         # Fetch reviews and filter out the PR creator's approval
         PR_APPROVALS=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
@@ -43,7 +43,7 @@ jobs:
         echo "APPROVAL_COUNT=${APPROVAL_COUNT}" >> $GITHUB_ENV
 
     - name: Auto merge if conditions are met
-      if: env.APPROVAL_COUNT -ge 2 && env.PR_BRANCH == 'developer'
+      if: ${{ env.APPROVAL_COUNT >= 2 && env.PR_BRANCH == 'developer' }}
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
@@ -55,7 +55,7 @@ jobs:
         git push origin HEAD:developer
 
     - name: Add comment on PR
-      if: env.APPROVAL_COUNT -ge 2 && env.PR_BRANCH == 'developer'
+      if: ${{ env.APPROVAL_COUNT >= 2 && env.PR_BRANCH == 'developer' }}
       run: |
         curl -s -X POST -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
           -H "Content-Type: application/json" \
