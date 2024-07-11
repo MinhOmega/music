@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs
-#
+
 on:
   pull_request:
     types: [opened, reopened, synchronize, closed]
@@ -37,7 +37,7 @@ jobs:
           if [ "$PR_BASE_BRANCH" == "$BASE_BRANCH" ]; then
             APPROVERS=(${REQUIRED_APPROVERS//,/ })
             echo "Required Approvers: ${APPROVERS[@]}"
-            while [ "$(date +%s)" -lt $END_TIME ]; do
+            while [ "$(date +%s)" -lt "$END_TIME" ]; do
               PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
               if [ "$PR_STATE" == "closed" ]; then
                 echo "PR #$PR_NUMBER is closed. Stopping the process."
@@ -60,10 +60,7 @@ jobs:
                 gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
                 echo "PR #$PR_NUMBER has been merged."
                 
-                # Comment on the PR
-                COMMENT="This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]}"
-                gh pr comment $PR_NUMBER --body "$COMMENT"
-                
+                echo "::set-output name=approved_users::${APPROVED_USERS[@]}"
                 break
               else
                 echo "PR #$PR_NUMBER does not have the required approvals yet. Checking again in 60 seconds..."
@@ -77,3 +74,28 @@ jobs:
           else
             echo "PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
           fi
+
+  comment-on-pr:
+    needs: auto-merge
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Comment on the PR
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+          APPROVED_USERS="${{ needs.auto-merge.outputs.approved_users }}"
+          COMMENT="This Pull Request is auto-merged by approval of ${APPROVED_USERS}"
+          gh pr comment $PR_NUMBER --body "$COMMENT"
