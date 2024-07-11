@@ -22,28 +22,28 @@ jobs:
     - name: Verify approvals
       id: verify
       run: |
-        PR_CREATOR=$(jq -r '.pull_request.user.login' $GITHUB_EVENT_PATH)
         PR_BRANCH=$(jq -r '.pull_request.base.ref' $GITHUB_EVENT_PATH)
         REQUIRED_APPROVERS_ARR=(${REQUIRED_APPROVERS//,/ })
-        
+
         # Fetch reviews and filter out the PR creator's approval
         PR_APPROVALS=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
-          | jq -r '[.[] | select(.state == "APPROVED" and .user.login != "'$PR_CREATOR'") | .user.login] | sort | join(",")')
+          | jq -r '[.[] | select(.state == "APPROVED") | .user.login] | sort | join(",")')
 
-        # Count approvals from required approvers
-        APPROVAL_COUNT=0
+        # Check if all required approvers have approved
+        ALL_APPROVED=true
         for APPROVER in "${REQUIRED_APPROVERS_ARR[@]}"; do
-          if [[ "$PR_APPROVALS" == *"$APPROVER"* ]]; then
-            ((APPROVAL_COUNT++))
+          if [[ ! "$PR_APPROVALS" == *"$APPROVER"* ]]; then
+            ALL_APPROVED=false
+            break
           fi
         done
 
         echo "PR_BRANCH=${PR_BRANCH}" >> $GITHUB_ENV
-        echo "APPROVAL_COUNT=${APPROVAL_COUNT}" >> $GITHUB_ENV
+        echo "ALL_APPROVED=${ALL_APPROVED}" >> $GITHUB_ENV
 
     - name: Auto merge if conditions are met
-      if: ${{ env.APPROVAL_COUNT >= 2 && env.PR_BRANCH == 'developer' }}
+      if: ${{ env.ALL_APPROVED == 'true' && env.PR_BRANCH == 'developer' }}
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
@@ -55,7 +55,7 @@ jobs:
         git push origin HEAD:developer
 
     - name: Add comment on PR
-      if: ${{ env.APPROVAL_COUNT >= 2 && env.PR_BRANCH == 'developer' }}
+      if: ${{ env.ALL_APPROVED == 'true' && env.PR_BRANCH == 'developer' }}
       run: |
         curl -s -X POST -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
           -H "Content-Type: application/json" \
