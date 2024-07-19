@@ -1,11 +1,11 @@
 name: Auto-Merge-PRs
-#
+##
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, closed]
 
 jobs:
   auto-merge:
@@ -92,8 +92,11 @@ jobs:
                 COMMENT="💬 This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]} 🗨️"
                 gh pr comment $PR_NUMBER --body "$COMMENT"
 
+                # Add the auto-merge label
+                gh pr edit $PR_NUMBER --add-label "auto-merge"
+
                 # Exit the workflow
-                break
+                exit 0
               else
                 # If the required approvals have not been received, wait for 60 seconds and check again
                 echo "🔄 PR #$PR_NUMBER does not have the required approvals yet. Checking again in 60 seconds..."
@@ -109,3 +112,27 @@ jobs:
             # If the pull request targets a different branch, print a message
             echo "❌ PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
           fi
+
+  manual-label:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && github.event.pull_request.merged_by.login != 'github-actions[bot]'
+
+    steps:
+      - name: Install GitHub CLI 🔧
+        run: |
+          # Install GitHub CLI
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Add manual merge label 🔖
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          # Get the pull request number from the event
+          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+
+          # Add the manual-merge label
+          gh pr edit $PR_NUMBER --add-label "merge-manual"
