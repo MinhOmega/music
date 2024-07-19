@@ -5,7 +5,7 @@ name: Auto-Merge-PRs
 #
 on:
   pull_request:
-    types: [opened, reopened, synchronize, closed]
+    types: [opened, reopened, synchronize]
 
 jobs:
   auto-merge:
@@ -68,6 +68,7 @@ jobs:
               fi
               # Check if the pull request is closed
               PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+              echo "$PR_STATE"
               if [ "$PR_STATE" == "closed" ]; then
                 echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
                 exit 0
