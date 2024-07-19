@@ -1,11 +1,11 @@
 name: Auto-Merge-PRs
-#
+##
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
 on:
   pull_request:
-    types: [opened, reopened, synchronize, closed]
+    types: [opened, reopened, synchronize]
 
 jobs:
   auto-merge:
@@ -92,7 +92,8 @@ jobs:
                 COMMENT="💬 This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]} 🗨️"
                 gh pr comment $PR_NUMBER --body "$COMMENT"
 
-                # Add the auto-merge label
+                # Add the auto-merge label, create if it doesn't exist
+                gh label create "auto-merge" --color "0e8a16" || true
                 gh pr edit $PR_NUMBER --add-label "auto-merge"
 
                 # Exit the workflow
@@ -134,5 +135,6 @@ jobs:
           # Get the pull request number from the event
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
 
-          # Add the manual-merge label
+          # Add the manual-merge label, create if it doesn't exist
+          gh label create "merge-manual" --color "ff0000" || true
           gh pr edit $PR_NUMBER --add-label "merge-manual"
