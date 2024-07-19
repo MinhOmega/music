@@ -41,15 +41,24 @@ jobs:
           # Get the base branch of the pull request
           PR_BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
 
+          # Get the PR author
+          PR_AUTHOR=$(jq -r '.pull_request.user.login' "$GITHUB_EVENT_PATH")
+
           # Set the end time for the merge process
           END_TIME=$(($(date +%s) + 86400))
+
+          # Initialize a flag for commenting
+          COMMENTED=false
 
           # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
           while true; do
             REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
 
             if [ -z "$REVIEWERS" ]; then
-              gh pr comment $PR_NUMBER --body "The pull request needs someone assigned to review and approve. Please assign reviewers."
+              if [ "$COMMENTED" = false ]; then
+                gh pr comment $PR_NUMBER --body "@$PR_AUTHOR The pull request needs someone assigned to review and approve. Please assign reviewers."
+                COMMENTED=true
+              fi
               echo "Waiting for reviewers to be assigned..."
               sleep 60
             else
