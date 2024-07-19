@@ -5,7 +5,7 @@ name: Auto-Merge-PRs
 #
 on:
   pull_request:
-    types: [opened, reopened, synchronize, closed]
+    types: [opened, reopened, synchronize]
 
 jobs:
   auto-merge:
@@ -52,13 +52,14 @@ jobs:
 
           # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
           while true; do
-            REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
             # Check if the pull request is closed
             PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
             if [ "$PR_STATE" == "closed" ]; then
               echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
               exit 0
             fi
+
+            REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
 
             if [ -z "$REVIEWERS" ]; then
               if [ "$COMMENTED" = false ]; then
@@ -67,6 +68,13 @@ jobs:
               fi
               echo "Waiting for reviewers to be assigned..."
               sleep 10
+
+              # Check if the pull request is closed after waiting
+              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+              if [ "$PR_STATE" == "closed" ]; then
+                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+                exit 0
+              fi
             else
               break
             fi
@@ -126,42 +134,9 @@ jobs:
                 # If the required approvals have not been received, wait for 60 seconds and check again
                 echo "🔄 PR #$PR_NUMBER does not have the required approvals yet. Checking again in 60 seconds..."
                 sleep 10
-              fi
-            done
 
-            # If the required approvals have not been received, print a message
-            if [ "$APPROVED_COUNT" -lt "$REQUIRED_APPROVALS" ]; then
-              echo "🕰️ PR #$PR_NUMBER did not receive the required approvals within 24 hours."
-            fi
-          else
-            # If the pull request targets a different branch, print a message
-            echo "❌ PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
-          fi
-
-  manual-label:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true && github.event.pull_request.merged_by.login != 'github-actions[bot]'
-
-    steps:
-      - name: Install GitHub CLI 🔧
-        run: |
-          # Install GitHub CLI
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y gh
-
-      - name: Authenticate GitHub CLI
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
-      - name: Add manual merge label 🔖
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Get the pull request number from the event
-          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
-
-          # Add the manual-merge label, create if it doesn't exist
-          gh label create "merge-manual" --color "ff0000" || true
-          gh pr edit $PR_NUMBER --add-label "merge-manual"
+                # Check if the pull request is closed after waiting
+                PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+                if [ "$PR_STATE" == "closed" ]; then
+                  echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+                  exit
