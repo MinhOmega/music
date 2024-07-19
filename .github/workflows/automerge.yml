@@ -1,11 +1,11 @@
 name: Auto-Merge-PRs
-##
+#
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
 on:
   pull_request:
-    types: [opened, reopened, synchronize, closed]
+    types: [opened, reopened, synchronize]
 
 jobs:
   auto-merge:
