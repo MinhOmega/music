@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs
-##
+#
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
@@ -67,14 +67,7 @@ jobs:
                 COMMENTED=true
               fi
               echo "Waiting for reviewers to be assigned..."
-              sleep 60
-
-              # Check if the pull request is closed after waiting
-              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-              if [ "$PR_STATE" == "closed" ]; then
-                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
-                exit 0
-              fi
+              sleep 10
             else
               break
             fi
@@ -90,10 +83,8 @@ jobs:
 
             # Loop until the pull request is closed or the required approvals are received
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
-              # Get the state of the pull request
+              # Check if the pull request is closed
               PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-
-              # If the pull request is closed, stop the process
               if [ "$PR_STATE" == "closed" ]; then
                 echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
                 exit 0
