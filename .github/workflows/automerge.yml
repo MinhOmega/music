@@ -53,6 +53,12 @@ jobs:
           # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
           while true; do
             REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
+            # Check if the pull request is closed
+            PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+            if [ "$PR_STATE" == "closed" ]; then
+              echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+              exit 0
+            fi
 
             if [ -z "$REVIEWERS" ]; then
               if [ "$COMMENTED" = false ]; then
