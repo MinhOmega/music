@@ -2,7 +2,7 @@ name: Auto-Merge-PRs
 ##
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
-##
+#
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -48,6 +48,14 @@ jobs:
             # Get the required approvers
             APPROVERS=(${REQUIRED_APPROVERS//,/ })
 
+            # Determine the number of required approvals
+            NUM_APPROVERS=${#APPROVERS[@]}
+            if [ "$NUM_APPROVERS" -gt 1 ]; then
+              REQUIRED_APPROVALS=$((NUM_APPROVERS - 1))
+            else
+              REQUIRED_APPROVALS=1
+            fi
+
             # Loop until the pull request is closed or the required approvals are received
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
               # Get the state of the pull request
@@ -76,7 +84,7 @@ jobs:
               done
 
               # Check if the required approvals have been received
-              if [ "$APPROVED_COUNT" -eq "${#APPROVERS[@]}" ]; then 
+              if [ "$APPROVED_COUNT" -ge "$REQUIRED_APPROVALS" ]; then 
                 # Merge the pull request
                 gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
 
@@ -94,11 +102,10 @@ jobs:
             done
 
             # If the required approvals have not been received, print a message
-            if [ "$APPROVED_COUNT" -ne "${#APPROVERS[@]}" ]; then ⚠️
+            if [ "$APPROVED_COUNT" -lt "$REQUIRED_APPROVALS" ]; then
               echo "🕰️ PR #$PR_NUMBER did not receive the required approvals within 24 hours."
             fi
           else
             # If the pull request targets a different branch, print a message
             echo "❌ PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
           fi
-
