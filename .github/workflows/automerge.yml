@@ -54,7 +54,7 @@ jobs:
           while true; do
             # Check if the pull request is closed
             PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-            if [ "$PR_STATE" == "closed" ]; then
+            if [ "$PR_STATE" == "CLOSED" ]; then
               echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
               exit 0
             fi
@@ -69,7 +69,7 @@ jobs:
               # Check if the pull request is closed
               PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
               echo "$PR_STATE"
-              if [ "$PR_STATE" == "closed" ]; then
+              if [ "$PR_STATE" == "CLOSED" ]; then
                 echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
                 exit 0
               fi
