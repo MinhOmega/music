@@ -34,7 +34,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_BRANCH: 'main'
-          SLEEP_DURATION: 60
+          SLEEP_DURATION: 5
         run: |
           # Get the pull request number from the event
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
@@ -51,9 +51,6 @@ jobs:
           # Initialize a flag for commenting
           COMMENTED=false
 
-          # list reviwers
-          REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
-
           # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
           while true; do
             # Check if the pull request is closed
@@ -62,6 +59,8 @@ jobs:
               echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
               exit 0
             fi
+
+            REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
 
             if [ -z "$REVIEWERS" ]; then
               if [ "$COMMENTED" = false ]; then
