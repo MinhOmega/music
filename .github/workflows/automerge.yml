@@ -54,6 +54,7 @@ jobs:
           while true; do
             # Check if the pull request is closed
             PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+            echo "$PR_STATE"
             if [ "$PR_STATE" == "CLOSED" ]; then
               echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
               exit 0
@@ -65,13 +66,6 @@ jobs:
               if [ "$COMMENTED" = false ]; then
                 gh pr comment $PR_NUMBER --body "@$PR_AUTHOR The pull request needs someone assigned to review and approve. Please assign reviewers."
                 COMMENTED=true
-              fi
-              # Check if the pull request is closed
-              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-              echo "$PR_STATE"
-              if [ "$PR_STATE" == "CLOSED" ]; then
-                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
-                exit 0
               fi
               echo "Waiting for reviewers to be assigned..."
               sleep 10
