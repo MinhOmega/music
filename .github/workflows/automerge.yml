@@ -33,7 +33,7 @@ jobs:
       - name: Check PR approvals and merge if approved 🛡️
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_BRANCH: 'main'
+          BASE_BRANCH: 'master'
           SLEEP_DURATION: 5
         run: |
           # Get the pull request number from the event
