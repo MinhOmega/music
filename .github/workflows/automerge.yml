@@ -5,7 +5,7 @@ name: Auto-Merge-PRs
 #
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, closed]
 
 jobs:
   auto-merge:
@@ -85,8 +85,8 @@ jobs:
 
               # Check if the required approvals have been received
               if [ "$APPROVED_COUNT" -ge "$REQUIRED_APPROVALS" ]; then 
-                # Merge the pull request
-                gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
+                # Merge the pull request using GitHub Actions bot
+                gh pr merge $PR_NUMBER --merge --repo ${{ github.repository }} --admin --body "This PR was merged by the GitHub Actions bot."
 
                 # Comment on the pull request
                 COMMENT="💬 This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]} 🗨️"
@@ -127,6 +127,9 @@ jobs:
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y gh
+
+      - name: Authenticate GitHub CLI
+        run: gh auth login --with-token <<< "${{ secrets.GH_TOKEN }}"
 
       - name: Add manual merge label 🔖
         env:
