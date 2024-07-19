@@ -64,7 +64,7 @@ jobs:
 
             if [ -z "$REVIEWERS" ]; then
               if [ "$COMMENTED" = false ]; then
-                gh pr comment $PR_NUMBER --body "@$PR_AUTHOR The pull request needs someone assigned to review and approve. Please assign reviewers."
+                gh pr comment $PR_NUMBER --body "Hi @$PR_AUTHOR, the pull request needs to be assigned to someone for review and approval. Please assign reviewers. Thank you!"
                 COMMENTED=true
               fi
               echo "Waiting for reviewers to be assigned..."
@@ -86,7 +86,7 @@ jobs:
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
               # Check if the pull request is closed
               PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-              if [ "$PR_STATE" == "closed" ]; then
+              if [ "$PR_STATE" == "CLOSED" ]; then
                 echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
                 exit 0
               fi
@@ -129,7 +129,7 @@ jobs:
 
                 # Check if the pull request is closed after waiting
                 PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-                if [ "$PR_STATE" == "closed" ]; then
+                if [ "$PR_STATE" == "CLOSED" ]; then
                   echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
                   exit 0
                 fi
