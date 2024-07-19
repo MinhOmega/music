@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs
-#
+##
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
@@ -26,6 +26,9 @@ jobs:
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y gh
+
+      - name: Authenticate GitHub CLI
+        run: gh auth login --with-token <<< "${{ secrets.GH_TOKEN }}"
 
       - name: Check PR approvals and merge if approved 🛡️
         id: merge-step
@@ -85,8 +88,8 @@ jobs:
 
               # Check if the required approvals have been received
               if [ "$APPROVED_COUNT" -ge "$REQUIRED_APPROVALS" ]; then 
-                # Merge the pull request
-                gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin
+                # Merge the pull request using GitHub Actions bot
+                gh pr merge $PR_NUMBER --squash --repo ${{ github.repository }} --admin --merge --body "This PR was merged by the GitHub Actions bot."
 
                 # Comment on the pull request
                 COMMENT="💬 This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]} 🗨️"
@@ -119,14 +122,8 @@ jobs:
     if: github.event.pull_request.merged == true && github.event.pull_request.merged_by.login != 'github-actions[bot]'
 
     steps:
-      - name: Install GitHub CLI 🔧
-        run: |
-          # Install GitHub CLI
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y gh
+      - name: Authenticate GitHub CLI
+        run: gh auth login --with-token <<< "${{ secrets.GH_TOKEN }}"
 
       - name: Add manual merge label 🔖
         env:
