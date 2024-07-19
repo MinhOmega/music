@@ -1,11 +1,11 @@
 name: Auto-Merge-PRs
-#
+##
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, closed]
 
 jobs:
   auto-merge:
@@ -31,10 +31,8 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
       - name: Check PR approvals and merge if approved 🛡️
-        id: merge-step
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REQUIRED_APPROVERS: ${{ vars.REQUIRED_APPROVERS }}
           BASE_BRANCH: 'developer'
         run: |
           # Get the pull request number from the event
@@ -46,18 +44,26 @@ jobs:
           # Set the end time for the merge process
           END_TIME=$(($(date +%s) + 86400))
 
+          # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
+          while true; do
+            REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
+
+            if [ -z "$REVIEWERS" ]; then
+              gh pr comment $PR_NUMBER --body "The pull request needs someone assigned to review and approve. Please assign reviewers."
+              echo "Waiting for reviewers to be assigned..."
+              sleep 60
+            else
+              break
+            fi
+          done
+
           # Check if the pull request targets the base branch
           if [ "$PR_BASE_BRANCH" == "$BASE_BRANCH" ]; then
-            # Get the required approvers
-            APPROVERS=(${REQUIRED_APPROVERS//,/ })
+            # Get the number of reviewers
+            NUM_REVIEWERS=$(echo "$REVIEWERS" | wc -w)
 
-            # Determine the number of required approvals
-            NUM_APPROVERS=${#APPROVERS[@]}
-            if [ "$NUM_APPROVERS" -gt 1 ]; then
-              REQUIRED_APPROVALS=$((NUM_APPROVERS - 1))
-            else
-              REQUIRED_APPROVALS=1
-            fi
+            # Determine the number of required approvals (more than half of the reviewers)
+            REQUIRED_APPROVALS=$((NUM_REVIEWERS / 2 + 1))
 
             # Loop until the pull request is closed or the required approvals are received
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
@@ -74,15 +80,15 @@ jobs:
               APPROVED_COUNT=0
               APPROVED_USERS=()
 
-              # Loop through the required approvers
-              for APPROVER in "${APPROVERS[@]}"; do
-                # Check if the approver has approved the pull request
-                if gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login=="'$APPROVER'" and .state=="APPROVED")' | grep -q "$APPROVER"; then
+              # Loop through the reviewers
+              for REVIEWER in $REVIEWERS; do
+                # Check if the reviewer has approved the pull request
+                if gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login=="'$REVIEWER'" and .state=="APPROVED")' | grep -q "$REVIEWER"; then
                   # Increment the approved count
                   APPROVED_COUNT=$((APPROVED_COUNT+1))
 
-                  # Add the approver to the list of approved users
-                  APPROVED_USERS+=("@$APPROVER")
+                  # Add the reviewer to the list of approved users
+                  APPROVED_USERS+=("@$REVIEWER")
                 fi
               done
 
