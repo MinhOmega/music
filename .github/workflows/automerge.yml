@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SLEEP_DURATION: 60
+      SLEEP_DURATION: 5
 
     steps:
       - name: Checkout repository 🚀
@@ -35,7 +35,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_BRANCH: 'master'
-          SLEEP_DURATION: 5
         run: |
           # Get the pull request number from the event
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
