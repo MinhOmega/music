@@ -18,31 +18,15 @@ jobs:
       - name: Checkout repository 🚀
         uses: actions/checkout@v2
 
-      - name: Cache dependencies 📦
-        uses: actions/cache@v2
-        with:
-          path: |
-            /usr/share/keyrings/githubcli-archive-keyring.gpg
-            /usr/local/bin/jq
-            /usr/local/bin/gh
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/setup-deps.sh') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-
-
       - name: Install dependencies 📦
         run: |
-          if ! command -v jq &> /dev/null || ! command -v gh &> /dev/null; then
-            echo "Installing jq and GitHub CLI"
-            sudo apt-get update
-            sudo apt-get install -y jq
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt-get update
-            sudo apt-get install -y gh
-          else
-            echo "jq and GitHub CLI already installed"
-          fi
+          sudo apt-get update
+          sudo apt-get install -y jq
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
 
       - name: Authenticate GitHub CLI
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
@@ -51,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_BRANCH: 'master'
-          SLEEP_DURATION: 5
+          SLEEP_DURATION: 60
         run: |
           # Get the pull request number from the event
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
@@ -171,31 +155,15 @@ jobs:
       - name: Checkout repository 🚀
         uses: actions/checkout@v2
 
-      - name: Cache dependencies 📦
-        uses: actions/cache@v2
-        with:
-          path: |
-            /usr/share/keyrings/githubcli-archive-keyring.gpg
-            /usr/local/bin/jq
-            /usr/local/bin/gh
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/setup-deps.sh') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-
-
       - name: Install dependencies 📦
         run: |
-          if ! command -v jq &> /dev/null || ! command -v gh &> /dev/null; then
-            echo "Installing jq and GitHub CLI"
-            sudo apt-get update
-            sudo apt-get install -y jq
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt-get update
-            sudo apt-get install -y gh
-          else
-            echo "jq and GitHub CLI already installed"
-          fi
+          sudo apt-get update
+          sudo apt-get install -y jq
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
 
       - name: Authenticate GitHub CLI
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
