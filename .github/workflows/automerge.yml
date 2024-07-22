@@ -13,6 +13,8 @@ jobs:
 
     env:
       SLEEP_DURATION: 5
+      TIMEOUT_MINUTES: 1440  # 24 hours
+      BASE_BRANCH: 'master'
 
     steps:
       - name: Checkout repository 🚀
@@ -32,9 +34,6 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
       - name: Check PR approvals and merge if approved 🛡️
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_BRANCH: 'master'
         run: |
           # Get the pull request number from the event
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
@@ -46,7 +45,7 @@ jobs:
           PR_AUTHOR=$(jq -r '.pull_request.user.login' "$GITHUB_EVENT_PATH")
 
           # Set the end time for the merge process
-          END_TIME=$(($(date +%s) + 86400))
+          END_TIME=$(($(date +%s) + ${{ env.TIMEOUT_MINUTES }} * 60))
 
           # Initialize a flag for commenting
           COMMENTED=false
@@ -67,7 +66,6 @@ jobs:
                 gh pr comment $PR_NUMBER --body "Hi @$PR_AUTHOR, the pull request needs to be assigned to someone for review and approval. Please assign reviewers. Thank you!"
                 COMMENTED=true
               fi
-              echo "$REVIEWERS"
               echo "Waiting for reviewers to be assigned..."
               sleep $SLEEP_DURATION
             else
@@ -128,52 +126,4 @@ jobs:
                 echo "🔄 PR #$PR_NUMBER does not have the required approvals yet. Checking again in $SLEEP_DURATION seconds..."
                 sleep $SLEEP_DURATION
 
-                # Check if the pull request is closed after waiting
-                PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-                if [ "$PR_STATE" == "CLOSED" ]; then
-                  echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
-                  exit 0
-                fi
-              fi
-            done
-
-            # If the required approvals have not been received, print a message
-            if [ "$APPROVED_COUNT" -lt "$REQUIRED_APPROVALS" ]; then
-              echo "🕰️ PR #$PR_NUMBER did not receive the required approvals within 24 hours."
-            fi
-          else
-            # If the pull request targets a different branch, print a message
-            echo "❌ PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
-          fi
-
-  manual-label:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true && github.event.pull_request.merged_by.login != 'github-actions[bot]'
-
-    steps:
-      - name: Checkout repository 🚀
-        uses: actions/checkout@v2
-
-      - name: Install dependencies 📦
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y gh
-
-      - name: Authenticate GitHub CLI
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
-      - name: Add manual merge label 🔖
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Get the pull request number from the event
-          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
-
-          # Add the manual-merge label, create if it doesn't exist
-          gh label create "merge-manual" --color "ff0000" || true
-          gh pr edit $PR_NUMBER --add-label "merge-manual"
+  
