@@ -31,7 +31,151 @@ jobs:
           sudo apt-get install -y gh
 
       - name: Authenticate GitHub CLI
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+        run: echo "${{ secrets.name: Auto-Merge-PRs-FE-release
+###
+# This workflow automates the merging of pull requests after they have received
+# the required approvals.
+#
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+
+    env:
+      SLEEP_DURATION: 5
+      TIMEOUT_MINUTES: 20
+      BASE_BRANCH: 'release'
+
+    steps:
+      - name: Checkout repository 🚀
+        uses: actions/checkout@v2
+
+      - name: Install dependencies 📦
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.GH_TOKEN }}" | gh auth login --with-token
+
+      - name: Check PR approvals and merge if approved 🛡️
+        run: |
+          # Get the pull request number from the event
+          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+
+          # Get the base branch of the pull request
+          PR_BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
+
+          # Get the PR author
+          PR_AUTHOR=$(jq -r '.pull_request.user.login' "$GITHUB_EVENT_PATH")
+
+          # Set the end time for the merge process
+          END_TIME=$(($(date +%s) + ${{ env.TIMEOUT_MINUTES }} * 60))
+
+          # Initialize a flag for commenting
+          COMMENTED=false
+
+          # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
+          while true; do
+            # Check if the pull request is closed
+            PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+            if [ "$PR_STATE" == "CLOSED" ]; then
+              echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+              exit 0
+            fi
+
+            REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
+
+            if [ -z "$REVIEWERS" ]; then
+              if [ "$COMMENTED" = false ]; then
+                gh pr comment $PR_NUMBER --body "Hi @$PR_AUTHOR, the pull request needs to be assigned to someone for review and approval. Please assign reviewers. Thank you!"
+                COMMENTED=true
+              fi
+              echo "Waiting for reviewers to be assigned..."
+              sleep $SLEEP_DURATION
+            else
+              break
+            fi
+          done
+
+          # Check if the pull request targets the base branch
+          if [ "$PR_BASE_BRANCH" == "$BASE_BRANCH" ]; then
+            # Get the number of reviewers
+            NUM_REVIEWERS=$(echo "$REVIEWERS" | wc -w)
+
+            # Determine the number of required approvals (more than half of the reviewers)
+            REQUIRED_APPROVALS=$((NUM_REVIEWERS / 2 + 1))
+
+            # Loop until the pull request is closed or the required approvals are received
+            while [ "$(date +%s)" -lt "$END_TIME" ]; do
+              # Check if the pull request is closed
+              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+              if [ "$PR_STATE" == "CLOSED" ]; then
+                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+                exit 0
+              fi
+
+              # Initialize counters
+              APPROVED_COUNT=0
+              APPROVED_USERS=()
+
+              # Loop through the reviewers
+              for REVIEWER in $REVIEWERS; do
+                # Check if the reviewer has approved the pull request
+                if gh pr view $PR_NUMBER --json reviews --jq '.reviews[] | select(.author.login=="'$REVIEWER'" and .state=="APPROVED")' | grep -q "$REVIEWER"; then
+                  # Increment the approved count
+                  APPROVED_COUNT=$((APPROVED_COUNT+1))
+
+                  # Add the reviewer to the list of approved users
+                  APPROVED_USERS+=("@$REVIEWER")
+                fi
+              done
+
+              # Check if the required approvals have been received
+              if [ "$APPROVED_COUNT" -ge "$REQUIRED_APPROVALS" ]; then 
+                # Merge the pull request using GitHub Actions bot
+                gh pr merge $PR_NUMBER --merge --repo ${{ github.repository }} --admin --body "This PR was merged by the GitHub Actions bot."
+
+                # Comment on the pull request
+                COMMENT="💬 This Pull Request is auto-merged by approval of ${APPROVED_USERS[@]} 🗨️"
+                gh pr comment $PR_NUMBER --body "$COMMENT"
+
+                # Add the auto-merge label, create if it doesn't exist
+                gh label create "auto-merge" --color "0e8a16" || true
+                gh pr edit $PR_NUMBER --add-label "auto-merge"
+
+                # Exit the workflow
+                exit 0
+              else
+                # If the required approvals have not been received, wait for $SLEEP_DURATION seconds and check again
+                echo "🔄 PR #$PR_NUMBER does not have the required approvals yet. Checking again in $SLEEP_DURATION seconds..."
+                sleep $SLEEP_DURATION
+
+                # Check if the pull request is closed after waiting
+                PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+                if [ "$PR_STATE" == "CLOSED" ]; then
+                  echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+                  exit 0
+                fi
+              fi
+            done
+
+            # If the required approvals have not been received, print a message
+            if [ "$APPROVED_COUNT" -lt "$REQUIRED_APPROVALS" ]; then
+              echo "🕰️ PR #$PR_NUMBER did not receive the required approvals within the timeout period."
+            fi
+          else
+            # If the pull request targets a different branch, print a message
+            echo "❌ PR does not target the '$BASE_BRANCH' branch. No merge action will be taken."
+          fi }}" | gh auth login --with-token
 
       - name: Check PR approvals and merge if approved 🛡️
         run: |
