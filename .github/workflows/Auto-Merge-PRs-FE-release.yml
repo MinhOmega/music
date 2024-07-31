@@ -164,6 +164,7 @@ jobs:
 
       - name: Check if PR was manually merged
         run: |
+          echo "Checking if PR was manually merged"
           # Get the pull request number from the event
           PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
 
@@ -173,9 +174,16 @@ jobs:
           # Get the user who is authenticated with the token
           AUTHORIZED_USER=$(gh api user --jq '.login')
 
+          echo "PR #$PR_NUMBER was merged by $MERGED_BY, authenticated user is $AUTHORIZED_USER"
+
           if [ "$MERGED_BY" != "$AUTHORIZED_USER" ]; then
             # Add the merge-manually label, create if it doesn't exist
             gh label create "merge-manually" --color "d93f0b" || true
             gh pr edit $PR_NUMBER --add-label "merge-manually"
             echo "🔖 PR #$PR_NUMBER was manually merged by @$MERGED_BY."
           fi
+        env:
+          SLEEP_DURATION: 5
+          TIMEOUT_MINUTES: 5
+          BASE_BRANCH: master
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Use a Personal Access Token with necessary permissions
