@@ -53,17 +53,15 @@ jobs:
           # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
           while true; do
             # Check if the pull request is closed or merged
-            PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
+            PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
             echo "Current PR state: $PR_STATE"
 
-            if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
-              if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
-                echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
-                break
-              else
-                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
-                exit 0
-              fi
+            if [ "$PR_STATE" == "CLOSED" ]; then
+              echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+              exit 0
+            elif [ "$PR_STATE" == "MERGED" ]; then
+              echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
+              break
             fi
 
             REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
@@ -76,18 +74,16 @@ jobs:
               echo "Waiting for reviewers to be assigned..."
               sleep $SLEEP_DURATION
 
-              # Check again if the PR is merged
-              PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
+              # Check again if the PR is closed or merged
+              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
               echo "Current PR state: $PR_STATE"
 
-              if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
-                if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
-                  echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
-                  break
-                else
-                  echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
-                  exit 0
-                fi
+              if [ "$PR_STATE" == "CLOSED" ]; then
+                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+                exit 0
+              elif [ "$PR_STATE" == "MERGED" ]; then
+                echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
+                break
               fi
             else
               break
@@ -105,17 +101,15 @@ jobs:
             # Loop until the pull request is closed or the required approvals are received
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
               # Check if the pull request is closed or merged
-              PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
+              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
               echo "Current PR state: $PR_STATE"
 
-              if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
-                if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
-                  echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
-                  break
-                else
-                  echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
-                  exit 0
-                fi
+              if [ "$PR_STATE" == "CLOSED" ]; then
+                echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+                exit 0
+              elif [ "$PR_STATE" == "MERGED" ]; then
+                echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
+                break
               fi
 
               # Initialize counters
