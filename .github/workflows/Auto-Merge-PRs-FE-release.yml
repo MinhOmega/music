@@ -66,6 +66,12 @@ jobs:
 
             REVIEWERS=$(gh pr view $PR_NUMBER --json reviewRequests --jq '.reviewRequests[].login')
 
+            CURRENT_TIME=$(date +%s)
+            if [ "$CURRENT_TIME" -ge "$END_TIME" ]; then
+              echo "⏳ Timeout reached while waiting for reviewers. Stopping the process."
+              exit 0
+            fi
+
             if [ -z "$REVIEWERS" ]; then
               if [ "$COMMENTED" = false ]; then
                 gh pr comment $PR_NUMBER --body "Hi @$PR_AUTHOR, the pull request needs to be assigned to someone for review and approval. Please assign reviewers. Thank you!"
@@ -84,6 +90,12 @@ jobs:
               elif [ "$PR_STATE" == "MERGED" ]; then
                 echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
                 break
+              fi
+
+              CURRENT_TIME=$(date +%s)
+              if [ "$CURRENT_TIME" -ge "$END_TIME" ]; then
+                echo "⏳ Timeout reached while waiting for reviewers. Stopping the process."
+                exit 0
               fi
             else
               break
