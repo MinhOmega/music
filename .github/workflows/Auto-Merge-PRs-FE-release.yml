@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs-FE-release
-#
+##
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
@@ -186,4 +186,4 @@ jobs:
           SLEEP_DURATION: 5
           TIMEOUT_MINUTES: 5
           BASE_BRANCH: master
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Use a Personal Access Token with necessary permissions
+          GH_TOKEN: ${{ secrets.GH_TOKEN }} # Use a Personal Access Token with necessary permissions
