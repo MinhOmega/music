@@ -1,5 +1,5 @@
 name: Auto-Merge-PRs-FE-release
-#
+###
 # This workflow automates the merging of pull requests after they have received
 # the required approvals.
 #
@@ -13,8 +13,8 @@ jobs:
 
     env:
       SLEEP_DURATION: 5
-      TIMEOUT_MINUTES: 20
-      BASE_BRANCH: 'release'
+      TIMEOUT_MINUTES: 5
+      BASE_BRANCH: 'master'
 
     steps:
       - name: Checkout repository 🚀
@@ -54,6 +54,8 @@ jobs:
           while true; do
             # Check if the pull request is closed or merged
             PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
+            echo "Current PR state: $PR_STATE"
+
             if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
               if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
                 echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
@@ -73,6 +75,20 @@ jobs:
               fi
               echo "Waiting for reviewers to be assigned..."
               sleep $SLEEP_DURATION
+
+              # Check again if the PR is merged
+              PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
+              echo "Current PR state: $PR_STATE"
+
+              if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
+                if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
+                  echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
+                  break
+                else
+                  echo "🛑 PR #$PR_NUMBER is closed. Stopping the process."
+                  exit 0
+                fi
+              fi
             else
               break
             fi
@@ -90,6 +106,8 @@ jobs:
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
               # Check if the pull request is closed or merged
               PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
+              echo "Current PR state: $PR_STATE"
+
               if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
                 if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
                   echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
