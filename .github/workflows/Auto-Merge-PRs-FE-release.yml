@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout repository 🚀
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install dependencies 📦
         run: |
@@ -53,9 +53,9 @@ jobs:
           # Check for reviewers and comment if none are assigned, then wait until reviewers are assigned
           while true; do
             # Check if the pull request is closed or merged
-            PR_STATE=$(gh pr view $PR_NUMBER --json state,merged --jq '{state: .state, merged: .merged}')
+            PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
             if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
-              if [ "$(echo $PR_STATE | jq -r '.merged')" == "true" ]; then
+              if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
                 echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
                 break
               else
@@ -89,9 +89,9 @@ jobs:
             # Loop until the pull request is closed or the required approvals are received
             while [ "$(date +%s)" -lt "$END_TIME" ]; do
               # Check if the pull request is closed or merged
-              PR_STATE=$(gh pr view $PR_NUMBER --json state,merged --jq '{state: .state, merged: .merged}')
+              PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt --jq '{state: .state, mergedAt: .mergedAt}')
               if [ "$(echo $PR_STATE | jq -r '.state')" == "CLOSED" ]; then
-                if [ "$(echo $PR_STATE | jq -r '.merged')" == "true" ]; then
+                if [ "$(echo $PR_STATE | jq -r '.mergedAt')" != "null" ]; then
                   echo "✅ PR #$PR_NUMBER is merged. Proceeding to the next step."
                   break
                 else
